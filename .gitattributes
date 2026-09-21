@@ -1,0 +1,40 @@
+# 统一换行符，避免 Windows / macOS / Linux 协作时整个文件被判定为改动。
+#
+# 背景：本仓库原先混用 CRLF 与 LF —— 同一台机器上不同编辑器写出来的文件不一样，
+# 结果 diff 里经常出现"整个文件都变了"但实际只改了几行的情况。
+# 注意本机的 core.autocrlf 若为 true，仓库里存的仍是 LF、检出时转 CRLF，
+# 这份配置的作用是**把规则显式写下来**，不再依赖各自的本地设置。
+
+# 默认：按内容自动判定，并在仓库内统一存成 LF
+* text=auto
+
+# 源代码与文档一律 LF
+*.kt      text eol=lf
+*.kts     text eol=lf
+*.java    text eol=lf
+*.xml     text eol=lf
+*.md      text eol=lf
+*.pro     text eol=lf
+*.properties text eol=lf
+*.toml    text eol=lf
+*.gradle  text eol=lf
+
+# 脚本按平台各自的习惯
+*.bat     text eol=crlf
+*.ps1     text eol=crlf
+*.cmd     text eol=crlf
+gradlew   text eol=lf
+
+# 二进制资源不要做任何换行转换（否则会损坏文件）
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.webp    binary
+*.jar     binary
+*.so      binary
+*.apk     binary
+
+# 生成的目录不参与统计与 diff
+build/       linguist-generated=true
+.gradle/     linguist-generated=true
+.kotlin/     linguist-generated=true

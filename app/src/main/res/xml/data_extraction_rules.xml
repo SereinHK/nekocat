@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 的数据提取规则。
+
+  为什么要显式禁用：
+  本应用的 deviceId（存在 SharedPreferences `neko_chat_prefs` 里）是**全网身份标识** ——
+  peers 表以它为键、私聊按它寻址、shouldDo 的拨号判定也用它。
+  一旦允许云备份/设备迁移，把 A 机的备份还原到 B 机，两台设备就会拿到同一个 deviceId，
+  在网内互相覆盖，行为不可预测。
+
+  应用本身没有需要保留的持久数据（聊天记录只在内存里），所以直接全禁，无任何损失。
+
+  `allowBackup="false"` 在 Android 12 起已被标记 deprecated，未来可能被移除；
+  这里给出显式规则，保证那时备份不会重新被打开。
+  两者同时保留：allowBackup 负责 11 及以下，本文件负责 12 及以上。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="file" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="file" path="." />
+    </device-transfer>
+</data-extraction-rules>

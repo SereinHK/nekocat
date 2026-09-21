@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设备页与底部导航栏文案（DevicesScreen.kt / AppRoot.kt）。
+  注意：带 %1$s / %2$s 的条目，占位符编号必须与调用处 stringResource 的参数顺序一致。
+-->
+<resources>
+    <!-- 设备页：页头 -->
+    <string name="devices_title">设备</string>
+    <string name="devices_no_online_devices">没有在线设备</string>
+    <string name="devices_online_count">%1$d 个在线 · %2$s</string>
+    <string name="devices_scan">扫描</string>
+    <string name="devices_stop_scan">停止</string>
+
+    <!-- 设备页：在线节点 -->
+    <string name="devices_online_section">在线节点</string>
+    <string name="devices_online_empty">暂无在线设备\n先在「设置」里选好传输方式并启动组网</string>
+
+    <!-- 设备页：已配对设备 -->
+    <string name="devices_paired_section">已配对设备</string>
+    <string name="devices_paired_empty">没有已配对设备\n可先在系统蓝牙设置中完成配对（经典模式需要）</string>
+
+    <!-- 设备页：附近设备 / 设备行按钮 -->
+    <string name="devices_nearby_section">附近设备</string>
+    <string name="devices_nearby_ble_hint">点右上角「扫描」发现附近正在广播的节点</string>
+    <string name="devices_nearby_classic_hint">经典模式下列表来自系统已配对设备</string>
+    <string name="devices_connect">连接</string>
+    <string name="devices_connecting">连接中</string>
+    <string name="devices_bonded">已配对</string>
+
+    <!-- 设备页：本机地址（WiFi 模式） -->
+    <string name="devices_local_address_section">本机地址</string>
+    <string name="devices_no_lan_address">未获取到局域网地址，请确认已连接 WiFi</string>
+    <string name="devices_listening">正在监听 %1$s</string>
+    <string name="devices_listening_host_port">正在监听 %1$s:%2$s</string>
+    <string name="devices_start_hint">点右上角「启动」开始监听后才能被连接</string>
+    <string name="devices_show_qr">显示二维码</string>
+
+    <!-- 设备页：连接对端（WiFi 模式） -->
+    <string name="devices_connect_peer_section">连接对端</string>
+    <string name="devices_scan_peer_qr">扫对方的二维码</string>
+    <string name="devices_or_manual_address">或者手动填地址</string>
+    <string name="devices_peer_address_label">对方地址</string>
+    <string name="devices_manual_address_hint">填 IP 即可，端口默认 %1$d；也可写成 192.168.1.5:端口</string>
+
+    <!-- 设备页：二维码弹窗 -->
+    <string name="devices_qr_title">扫码连接</string>
+    <string name="devices_qr_content_desc">连接二维码</string>
+    <string name="devices_qr_hint">让对方在「设备 → 扫对方的二维码」里扫这张图</string>
+    <string name="devices_not_listening_hint">还没开始监听，请先点右上角「启动」</string>
+    <string name="devices_close">关闭</string>
+
+    <!-- 设备页：在线节点行 -->
+    <string name="devices_peer_subtitle">%1$s · %2$s</string>
+    <string name="devices_private_chat">私聊</string>
+    <string name="devices_exit_private">退出</string>
+
+    <!-- 底部导航栏 -->
+    <string name="tab_chat">聊天</string>
+    <string name="tab_devices">设备</string>
+    <string name="tab_settings">设置</string>
+</resources>

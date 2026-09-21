@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 设置页标题 / 组网状态 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_mesh_running">组网运行中</string>
+    <string name="settings_mesh_stopped">组网已停止</string>
+
+    <!-- 昵称 -->
+    <string name="settings_nickname_section">本机昵称</string>
+    <string name="settings_nickname_label">其他设备看到的名字</string>
+    <string name="settings_save">保存</string>
+    <string name="settings_nickname_hint">修改后会重新广播身份</string>
+
+    <!-- 传输方式 -->
+    <string name="settings_transport_section">传输方式</string>
+    <string name="settings_transport_hint">两台设备必须选择同一种传输方式。切换后会自动重启组网。</string>
+    <string name="settings_transport_rfcomm_summary">基于 SPP 串口，稳定低延迟，需要先在系统里配对</string>
+    <string name="settings_transport_ble_summary">基于 GATT 通知，无需配对，自动发现并连接</string>
+    <string name="settings_transport_wifi_summary">基于 TCP，带宽高、距离远，需要两台设备在同一个局域网</string>
+    <string name="settings_selected">已选中</string>
+
+    <!-- 组网 -->
+    <string name="settings_mesh_section">组网</string>
+    <string name="settings_auto_start_title">启动时自动组网</string>
+    <string name="settings_auto_start_summary">授予权限并打开蓝牙后自动开始</string>
+    <string name="settings_keep_alive_title">后台保活</string>
+    <string name="settings_keep_alive_summary">组网期间显示常驻通知，降低被系统回收的概率</string>
+
+    <!-- 操作 -->
+    <string name="settings_actions_section">操作</string>
+    <string name="settings_start_mesh">启动组网</string>
+    <string name="settings_stop_mesh">停止组网</string>
+    <string name="settings_clear_messages">清空聊天记录</string>
+    <string name="settings_exit_app">退出应用</string>
+
+    <!-- 诊断 -->
+    <string name="settings_diagnostics_section">诊断</string>
+    <string name="settings_wifi_test_title">WiFi 直连测试</string>
+    <string name="settings_wifi_test_summary">验证局域网 TCP 建链与帧协议（单机也可自测）</string>
+
+    <!-- 关于 -->
+    <string name="settings_about_section">关于</string>
+    <string name="settings_online_devices_label">在线设备</string>
+    <string name="settings_current_status_label">当前状态</string>
+    <string name="settings_transport_label">传输方式</string>
+    <string name="settings_ui_library_label">UI 组件库</string>
+</resources>

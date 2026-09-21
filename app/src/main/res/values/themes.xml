@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.NekoChat" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- 窗口背景与 Compose 端的渐变底色保持一致，避免系统栏区域露出黑/白底 -->
+        <item name="android:windowBackground">@color/window_background</item>
+        <!-- 系统栏保持透明，让窗口内容（渐变）透过去 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <!-- windowLightNavigationBar 需要 API 27，放在 values-v27 -->
+    </style>
+</resources>

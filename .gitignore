@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.kotlin
+app/build
+
+# 图标设计源文件，不随仓库发布
+Un1.png
+Un1.xml
+
+# 排障记录，本地保留，不随仓库发布
+docs/TROUBLESHOOTING.md
+
+# 发布签名密钥，绝不入库
+keystore.properties
+*.jks
+*.keystore

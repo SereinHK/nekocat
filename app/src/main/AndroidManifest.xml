@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ===== 蓝牙经典 (RFCOMM) ===== -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <!-- ===== Android 12+ (API 31) 蓝牙权限 ===== -->
+    <!-- neverForLocation: 本应用仅用于点对点聊天，不使用蓝牙推断位置 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <!-- Android 11 及以下：BLE 扫描需要位置权限 -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- ===== WiFi 局域网 (TCP) ===== -->
+    <!-- 普通运行时装权限：局域网 socket 必需 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 把流量绑定到 WiFi 网络（避免无外网时走蜂窝）需要它 -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- ===== 扫码连接 ===== -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 没相机的设备也能用（可手动填地址），所以 required=false -->
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="true" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
+    <!--
+      miuix-blur 在自己的 manifest 里声明了 minSdk 33（因为它依赖 RuntimeShader）。
+      这里覆盖掉，以便保持本应用 minSdk 26。安全性由代码保证：
+      所有 blur 调用点都被 isRuntimeShaderSupported() 门控，
+      低版本设备上不会加载该类，因此不会触发 NoClassDefFoundError。
+    -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+
+    <!--
+      allowBackup=false：deviceId 存在 SharedPreferences 里，是全网身份标识
+      （peers 以它为键、私聊按它寻址、拨号判定用它）。允许备份/设备迁移的话，
+      把 A 机备份还原到 B 机会让两台设备拿到同一个 deviceId，在网内互相覆盖。
+      本应用没有需要保留的持久数据，直接全禁。
+      API 12+ 由 dataExtractionRules 兜底（allowBackup 从 12 起已 deprecated）。
+      lint 的 DataExtractionRules 提示只是"该属性已废弃"的通用提醒，
+      这里两种情况都已显式处理，故忽略。
+    -->
+    <application
+        android:name=".NekoChatApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NekoChat"
+        tools:ignore="DataExtractionRules">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".service.ChatForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+    </application>
+
+</manifest>

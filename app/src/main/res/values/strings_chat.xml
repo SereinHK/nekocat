@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 标题栏 / 运行状态 -->
+    <string name="chat_title">喵聊</string>
+    <string name="chat_private">私聊</string>
+    <string name="chat_peer_placeholder">对方</string>
+    <string name="chat_no_peers_online">暂无设备在线</string>
+    <string name="chat_peers_online">%1$d 个设备在线</string>
+    <string name="chat_start">启动</string>
+    <string name="chat_stop">停止</string>
+
+    <!-- 空会话引导 -->
+    <string name="chat_empty_title">还没有消息</string>
+    <string name="chat_empty_summary">两台设备互联后即可开始聊天</string>
+    <string name="chat_setup_transport_title">选传输方式</string>
+    <string name="chat_setup_transport_summary">两台设备选同一种：经典或 BLE</string>
+    <string name="chat_setup_start_title">启动组网</string>
+    <string name="chat_setup_start_summary">点右上角「启动」，等待互相发现</string>
+    <string name="chat_setup_chat_title">开始聊天</string>
+    <string name="chat_setup_chat_summary">在「设备」页可以看到在线设备</string>
+
+    <!-- 消息气泡 -->
+    <string name="chat_sent_to">发给 %1$s</string>
+    <!-- 引号用于保留前导空格：这条标签与发送者名字分开显示，需要那个间隔 -->
+    <string name="chat_private_suffix">" · 私聊"</string>
+
+    <!-- 权限 / 蓝牙 / 运行状态提示条 -->
+    <string name="chat_bt_unsupported">此设备不支持蓝牙</string>
+    <string name="chat_bt_permission_denied">蓝牙权限被拒绝，请在系统设置中手动开启</string>
+    <string name="chat_bt_permission_required">需要蓝牙权限才能发现和连接设备</string>
+    <string name="chat_grant">授予</string>
+    <string name="chat_bt_disabled">蓝牙未开启，请在系统设置中打开</string>
+    <string name="chat_location_disabled">系统定位服务未开启，Android 12 以下无法扫描到蓝牙设备</string>
+    <string name="chat_networking_not_started">未启动组网 · %1$s</string>
+
+    <!-- 私聊提示条 -->
+    <string name="chat_visible_only_to">仅 %1$s 可见</string>
+    <string name="chat_exit_private">退出私聊</string>
+
+    <!-- 输入栏 -->
+    <string name="chat_input_hint">输入消息</string>
+    <string name="chat_input_disabled_hint">请先启动组网</string>
+    <string name="chat_send">发送</string>
+
+    <!-- 气泡右下角的投递状态 -->
+    <string name="chat_delivery_delivered">已送达</string>
+    <string name="chat_delivery_sending">发送中</string>
+    <string name="chat_delivery_no_peers">无其他设备</string>
+    <string name="chat_delivery_broadcast">已广播 ×%1$d</string>
+    <string name="chat_delivery_sent">已发送 ×%1$d</string>
+
+    <!-- 日期分隔条。这里是 SimpleDateFormat 的模板，单引号在资源里必须转义 -->
+    <string name="chat_date_today">\'今天\' HH:mm</string>
+    <string name="chat_date_this_year">M月d日 HH:mm</string>
+    <string name="chat_date_full">yyyy年M月d日</string>
+</resources>

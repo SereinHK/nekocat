@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  自适应图标：橘猫前景 + 纯白底。
+  前景图 ic_launcher_cat.png 已按安全区缩放（108dp 画布内内容只占 272/432），
+  避免猫耳被启动器的圆形/圆角遮罩裁掉。
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_cat" />
+</adaptive-icon>

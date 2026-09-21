@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动器图标底色：橘猫配纯白最干净 -->
+    <color name="ic_launcher_background">#FFFFFFFF</color>
+
+    <!-- 窗口背景：与 Compose 端的渐变起点一致，避免系统栏区域露出黑/白底 -->
+    <color name="window_background">#F7F6FF</color>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transport_no_ble_permission">缺少 BLE 权限</string>
+    <string name="transport_no_bluetooth_permission">缺少蓝牙权限</string>
+    <string name="transport_no_location_permission">缺少位置权限</string>
+    <string name="transport_no_scan_permission">缺少扫描权限</string>
+    <string name="transport_bluetooth_unsupported">设备不支持蓝牙</string>
+    <string name="transport_ble_scan_unsupported">设备不支持 BLE 扫描</string>
+    <string name="transport_scan_failed">扫描失败 (code=%1$d)</string>
+    <string name="transport_peer_disconnected">对端断开 BLE 连接</string>
+    <string name="transport_listen_interrupted">监听中断</string>
+    <string name="transport_rfcomm_listen_interrupted">RFCOMM 监听中断</string>
+    <string name="transport_handle_connection_failed">处理连接失败</string>
+
+    <!-- 链路内部抛出的异常文案，会经 onDown 变成界面上的「… 已断开：<原因>」 -->
+    <string name="transport_invalid_frame_len">非法帧长度 %1$d</string>
+    <string name="transport_connection_closed">连接已关闭</string>
+    <string name="transport_ble_notify_failed">BLE 通知发送失败</string>
+    <string name="transport_ble_send_failed">BLE 发送失败</string>
+</resources>

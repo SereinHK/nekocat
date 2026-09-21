@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">喵聊</string>
+
+    <!-- 通知 -->
+    <string name="notif_channel_name">喵聊连接</string>
+    <string name="notif_channel_desc">保持喵聊连接在后台运行</string>
+    <string name="notif_title">喵聊正在运行</string>
+    <string name="notif_waiting">等待设备连接</string>
+    <string name="notif_action_stop">停止</string>
+
+    <!-- 传输方式显示名 -->
+    <string name="transport_rfcomm">蓝牙经典 (RFCOMM)</string>
+    <string name="transport_ble">低功耗蓝牙 (BLE)</string>
+    <string name="transport_wifi">WiFi 局域网 (TCP)</string>
+</resources>

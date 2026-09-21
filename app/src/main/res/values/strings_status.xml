@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  组网状态文字：MeshManager 的 postStatus 与 ChatViewModel 的 status。
+  这些字符串会原样显示在聊天页顶栏与「设备」页的状态行，属于用户可见文案。
+  注意 %1$s 等占位符的顺序必须与调用处 getString 的参数顺序一致。
+-->
+<resources>
+    <!-- MeshManager：启动与停止 -->
+    <string name="status_started">已启动 %1$s 服务，等待设备连接</string>
+    <string name="status_start_failed_no_bt_permission">启动失败：缺少蓝牙权限</string>
+    <string name="status_start_failed">启动失败：%1$s</string>
+    <string name="status_stopped">已停止</string>
+
+    <!-- MeshManager：链路 -->
+    <string name="status_link_established">已建立链路：%1$s (%2$s)</string>
+    <string name="status_link_disconnected">%1$s 已断开：%2$s</string>
+    <string name="status_hello_failed">握手包发送失败：%1$s</string>
+    <string name="status_peer_joined">%1$s 已加入</string>
+    <string name="status_unparsable_packet">收到无法解析的数据包</string>
+
+    <!-- MeshManager：RFCOMM -->
+    <string name="status_rfcomm_listen_ended">RFCOMM 监听结束：%1$s</string>
+    <string name="status_connecting_address">正在连接 %1$s …</string>
+    <string name="status_connect_failed">连接失败：%1$s</string>
+    <string name="status_unknown_device">无法获取设备 %1$s</string>
+
+    <!-- MeshManager：BLE -->
+    <string name="status_ble_server_failed">BLE 服务启动失败，请检查蓝牙开关与权限</string>
+    <string name="status_ble_scan_failed">BLE 扫描失败：%1$s</string>
+
+    <!-- MeshManager：WiFi -->
+    <string name="status_wifi_listening">WiFi 监听中 %1$s，等待对端连接</string>
+    <string name="status_wifi_listen_ended">WiFi 监听结束：%1$s</string>
+    <string name="status_wifi_no_lan_address">已在 %1$d 端口监听，但未获取到局域网地址，请先连接 WiFi</string>
+    <string name="status_wifi_server_failed">WiFi 服务启动失败：%1$s</string>
+    <string name="status_wifi_no_port">无可用端口</string>
+    <string name="status_wifi_connecting">正在连接 %1$s:%2$d …</string>
+    <string name="status_wifi_connect_failed">WiFi 连接失败：%1$s</string>
+
+    <!-- 链路断开原因 -->
+    <string name="reason_connection_closed">连接已断开</string>
+    <string name="reason_peer_closed_ble">对端断开 BLE 连接</string>
+
+    <!-- ChatViewModel：权限与环境 -->
+    <string name="status_default">未连接</string>
+    <string name="status_bt_permission_denied">蓝牙权限被拒绝，请在系统设置中开启</string>
+    <string name="status_need_bt_permission">请先授予蓝牙权限</string>
+    <string name="status_need_bt_enabled">请先打开蓝牙</string>
+    <string name="status_need_start_first">请先启动组网</string>
+
+    <!-- ChatViewModel：发送与扫描 -->
+    <string name="status_sent_broadcast">已发送（广播）</string>
+    <string name="status_sent_to">已发送给 %1$s</string>
+    <string name="status_peer_placeholder">对方</string>
+    <string name="status_scanning">正在扫描附近设备…</string>
+    <string name="status_scan_stopped">已停止扫描</string>
+
+    <!-- ChatViewModel：手动填地址 -->
+    <string name="status_address_required">请先填写对方地址</string>
+    <string name="status_address_invalid">地址格式不对，应形如 192.168.1.5</string>
+</resources>
