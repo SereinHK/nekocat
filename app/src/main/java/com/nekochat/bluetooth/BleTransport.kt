@@ -158,21 +158,6 @@ class BleTransport(private val context: Context) {
     /** 各 Central 协商出来的 ATT MTU，key 为设备地址。未协商前按 [DEFAULT_ATT_MTU] 算。 */
     private val mtuByDevice = ConcurrentHashMap<String, Int>()
 
-    /**
-     * 每个 Central 的待发通知队列。
-     *
-     * 一帧长消息有上千字节，而单次 notify 最多只能带 `MTU − 3` 字节，必须切片发。
-     * 切片又不能连着甩出去 —— 上一片还没发完就发下一片会被协议栈判成忙而丢包，
-     * 所以一次只发一片，等 [BluetoothGattServerCallback.onNotificationSent] 回来再发下一片。
-     */
-    private class NotifySlice(val payload: ByteArray, val onComplete: ((Boolean) -> Unit)?)
-
-    private val notifyLock = Any()
-    private val notifyQueues = HashMap<String, ArrayDeque<NotifySlice>>()
-
-    /** 每个 Central 当前正在发的那一片，收到 onNotificationSent 后据此取回调。 */
-    private val notifyInFlight = HashMap<String, NotifySlice>()
-
     private var serverListener: TransportListener? = null
     private val advertised = AtomicBoolean(false)
 
@@ -187,13 +172,6 @@ class BleTransport(private val context: Context) {
                 centrals.remove(address)
                 subscribedCentrals.remove(address)
                 mtuByDevice.remove(address)
-                // 队列里剩下的分片不可能再发出去了，全部判失败，避免回调永远不触发
-                val dropped = ArrayList<NotifySlice>()
-                synchronized(notifyLock) {
-                    notifyInFlight.remove(address)?.let { dropped += it }
-                    notifyQueues.remove(address)?.let { dropped.addAll(it) }
-                }
-                dropped.forEach { it.onComplete?.invoke(false) }
                 serverListener?.let { listener ->
                     serverLinks.remove(address)?.let { listener.onLinkDown(it, context.getString(R.string.transport_peer_disconnected)) }
                 }
@@ -206,18 +184,19 @@ class BleTransport(private val context: Context) {
             Log.i(TAG, "服务端 MTU 协商 addr=${device.address} mtu=$mtu 单片上限=${chunkSizeFor(mtu)}")
         }
 
-        /** 上一片通知发完了，取回调并接着发下一片。 */
+        /**
+         * 通知发送结果。
+         *
+         * **只用来记日志，发送流程绝不依赖它。**
+         * 曾经写成「发一片 → 等这个回调 → 再发下一片」，结果真机上表现为
+         * 「两端都显示在线，但一条消息也收不到」：收到 HELLO 说明第一片确实发出去了，
+         * 而回调在某些 ROM 上不触发，后续所有通知就永远卡在队列里。
+         * 只用返回值判断、不等待回调，就不会有这种卡死。
+         */
         override fun onNotificationSent(device: BluetoothDevice, status: Int) {
-            val address = device.address
-            val done: NotifySlice?
-            synchronized(notifyLock) { done = notifyInFlight.remove(address) }
-            if (done != null) {
-                if (status != BluetoothGatt.GATT_SUCCESS) {
-                    Log.w(TAG, "通知发送失败 addr=$address status=$status")
-                }
-                done.onComplete?.invoke(status == BluetoothGatt.GATT_SUCCESS)
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.w(TAG, "通知发送失败 addr=${device.address} status=$status")
             }
-            pumpNotifications(device)
         }
 
         override fun onCharacteristicWriteRequest(
@@ -497,64 +476,44 @@ class BleTransport(private val context: Context) {
     }
 
     /**
-     * 把一整帧按当前 MTU 切片排队发给某个 Central。
+     * 把一整帧按当前 MTU 切片发给某个 Central。
      *
-     * 只有最后一片带上整帧的回调 —— 前面的片失败了会把队列里剩下的都判失败，
-     * 不会出现「回调永远不触发」。
+     * **注意这里不等 `onNotificationSent`。** 通知没有 ATT 应答，协议栈收到的每一片
+     * 都会自己排队发出去；反过来，如果非要等那个回调才发下一片，一旦回调不触发
+     * （某些 ROM 上就是不触发），整个方向的数据就永远卡死 —— 真机现象是
+     * 「两端都显示在线，但一条消息都收不到」。
+     *
+     * 所以只信 [notifyCharacteristicChanged] 的返回值：返回非 SUCCESS 说明这一片
+     * 协议栈没收，整帧判失败；返回 SUCCESS 就接着发下一片。
      */
     internal fun enqueueNotification(
         device: BluetoothDevice,
         frame: ByteArray,
         onComplete: (Boolean) -> Unit
     ) {
-        val size = chunkSizeFor(mtuByDevice[device.address] ?: DEFAULT_ATT_MTU)
-        val slices = ArrayList<NotifySlice>()
-        var offset = 0
-        while (offset < frame.size) {
-            val end = minOf(offset + size, frame.size)
-            slices += NotifySlice(frame.copyOfRange(offset, end), null)
-            offset = end
-        }
-        if (slices.isEmpty()) {
+        if (frame.isEmpty()) {
             onComplete(true)
             return
         }
-        // 只有最后一片的回调代表「整帧发完」
-        slices[slices.lastIndex] = NotifySlice(slices[slices.lastIndex].payload, onComplete)
-        if (slices.size > 1) {
-            Log.d(TAG, "通知分 ${slices.size} 片发送 ${frame.size} 字节（单片 $size）")
+        val size = chunkSizeFor(mtuByDevice[device.address] ?: DEFAULT_ATT_MTU)
+        val slices = (frame.size + size - 1) / size
+        if (slices > 1) {
+            Log.d(TAG, "通知分 $slices 片发送 ${frame.size} 字节（MTU=${mtuByDevice[device.address] ?: DEFAULT_ATT_MTU}，单片 $size）")
         }
-
-        synchronized(notifyLock) {
-            notifyQueues.getOrPut(device.address) { ArrayDeque() }.addAll(slices)
-        }
-        pumpNotifications(device)
-    }
-
-    private fun pumpNotifications(device: BluetoothDevice) {
-        val address = device.address
-        val slice: NotifySlice
-        synchronized(notifyLock) {
-            if (notifyInFlight.containsKey(address)) return   // 上一片还没发完
-            val queue = notifyQueues[address] ?: return
-            val next = queue.removeFirstOrNull()
-            if (next == null) {
-                notifyQueues.remove(address)
+        var offset = 0
+        var index = 0
+        while (offset < frame.size) {
+            val end = minOf(offset + size, frame.size)
+            val ok = sendNotificationNow(device, frame.copyOfRange(offset, end))
+            if (!ok) {
+                Log.w(TAG, "通知第 ${index + 1}/$slices 片未被受理 addr=${device.address}（已发 $offset 字节）")
+                onComplete(false)
                 return
             }
-            notifyInFlight[address] = next
-            slice = next
+            offset = end
+            index++
         }
-        if (sendNotificationNow(device, slice.payload)) return
-
-        // 没受理：这一片和队列里剩下的一次性判失败，否则回调永远等不到
-        val rest = ArrayList<NotifySlice>()
-        synchronized(notifyLock) {
-            notifyInFlight.remove(address)
-            notifyQueues.remove(address)?.let { rest.addAll(it) }
-        }
-        slice.onComplete?.invoke(false)
-        rest.forEach { it.onComplete?.invoke(false) }
+        onComplete(true)
     }
 
     @SuppressLint("MissingPermission")
