@@ -25,6 +25,8 @@
     <string name="settings_auto_start_summary">授予权限并打开蓝牙后自动开始</string>
     <string name="settings_keep_alive_title">后台保活</string>
     <string name="settings_keep_alive_summary">组网期间显示常驻通知，降低被系统回收的概率</string>
+    <string name="settings_battery_title">允许后台常驻</string>
+    <string name="settings_battery_summary">系统会为省电掐断息屏后的连接，点这里把本应用加入「不优化」名单</string>
 
     <!-- 操作 -->
     <string name="settings_actions_section">操作</string>

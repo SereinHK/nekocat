@@ -13,9 +13,15 @@
     <string name="chat_empty_title">还没有消息</string>
     <string name="chat_empty_summary">两台设备互联后即可开始聊天</string>
     <string name="chat_setup_transport_title">选传输方式</string>
-    <string name="chat_setup_transport_summary">两台设备选同一种：经典或 BLE</string>
+    <string name="chat_setup_transport_summary">两台设备选同一种：经典、BLE 或 WiFi</string>
     <string name="chat_setup_start_title">启动组网</string>
-    <string name="chat_setup_start_summary">点右上角「启动」，等待互相发现</string>
+    <!--
+      第 2 步按当前传输方式显示不同文案：三种传输的「怎么连上」差别很大，
+      统一写成「等待互相发现」会让 WiFi 和经典蓝牙的用户卡在这一步。
+    -->
+    <string name="chat_setup_start_rfcomm">先在系统蓝牙里配对，两端都点「启动」，再到「设备」页点对方「连接」</string>
+    <string name="chat_setup_start_ble">两端都点「启动」，会自动互相发现并连接</string>
+    <string name="chat_setup_start_wifi">两端都点「启动」；主机在「设备」页点「显示二维码」，对端扫它</string>
     <string name="chat_setup_chat_title">开始聊天</string>
     <string name="chat_setup_chat_summary">在「设备」页可以看到在线设备</string>
 

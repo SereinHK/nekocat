@@ -28,6 +28,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      申请电池优化豁免：真机实测过息屏几分钟后 GATT 链路被厂商省电策略掐断，
+      前台服务拦不住，只能靠这个白名单。用户点了「允许」才会生效，
+      应用不会静默给自己加白名单。
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- ===== WiFi 局域网 (TCP) ===== -->
     <!-- 普通运行时装权限：局域网 socket 必需 -->
     <uses-permission android:name="android.permission.INTERNET" />

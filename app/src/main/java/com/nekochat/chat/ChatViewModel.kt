@@ -8,6 +8,7 @@ import com.nekochat.NekoChatApp
 import com.nekochat.R
 import com.nekochat.service.ChatForegroundService
 import com.nekochat.util.BtPermissions
+import com.nekochat.util.PowerUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +41,13 @@ data class UiState(
      * API 31+ 恒为 true。
      */
     val locationServiceEnabled: Boolean = true,
+    /**
+     * 是否已豁免电池优化。
+     *
+     * 真机实测：息屏几分钟后 GATT 链路会被厂商省电策略掐断，前台服务拦不住。
+     * 没豁免时设置页给一行提示，点一下直接跳到系统授权。
+     */
+    val batteryOptimizationIgnored: Boolean = true,
     val autoStart: Boolean = true,
     val notifyOnMessage: Boolean = true,
     /** 本机局域网 IPv4 地址（WiFi 模式展示用）。 */
@@ -128,12 +136,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val granted = BtPermissions.allGranted(context)
         val enabled = BtPermissions.isBluetoothEnabled(context)
         val locationOn = BtPermissions.isLocationServiceEnabled(context)
+        val batteryOk = PowerUtils.isIgnoringBatteryOptimizations(context)
         _state.update {
             it.copy(
                 bluetoothSupported = supported,
                 permissionGranted = granted,
                 bluetoothEnabled = enabled,
-                locationServiceEnabled = locationOn
+                locationServiceEnabled = locationOn,
+                batteryOptimizationIgnored = batteryOk
             )
         }
         // WiFi 模式走 TCP，不该因为「没开蓝牙 / 没给蓝牙权限」而不自动组网。

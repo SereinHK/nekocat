@@ -191,6 +191,7 @@ class MeshManager(
             // 那条死链路会一直占着 address，界面上显示「在线」但一条消息都发不出去。
             // 心跳每 12 秒一次，正好当作兜底的巡检。
             pruneDeadLinks()
+            logTopology()
             broadcastHello()
             handler.postDelayed(this, HELLO_INTERVAL_MS)
         }
@@ -198,6 +199,27 @@ class MeshManager(
 
     fun setListener(listener: Listener?) {
         this.listener = listener
+    }
+
+    /**
+     * 每 12 秒把当前的链路表和在线表打一行日志。
+     *
+     * **为什么要定期打**：三台设备下出现过「A 看到 2 台、B 和 C 各看到 1 台」这种
+     * 星型拓扑，而当时手头没有第三台设备可复现。这类问题只能靠真机日志定位，
+     * 但拓扑是慢慢收敛出来的，事后再去翻日志根本拼不出「某一时刻谁连着谁」。
+     * 心跳本来就在跑，顺手记一行，下次三台一测就能直接看到拓扑长什么样。
+     *
+     * 只在有链路时打，避免空转刷屏。
+     */
+    private fun logTopology() {
+        val currentLinks = links.values
+        if (currentLinks.isEmpty()) return
+        val linkText = currentLinks.joinToString(", ") { attached ->
+            val id = attached.deviceId?.take(6) ?: "?"
+            "${attached.link.address}->$id/${if (attached.link.isConnected) "活" else "死"}"
+        }
+        val peerText = peers.values.joinToString(", ") { "${it.deviceId.take(6)}@${it.address}" }
+        Log.i(TAG, "拓扑 links=[$linkText] peers=[$peerText]")
     }
 
     /**

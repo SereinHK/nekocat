@@ -138,7 +138,10 @@ fun ChatScreen(
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 if (state.messages.isEmpty()) {
-                    EmptyConversation(modifier = Modifier.align(Alignment.Center))
+                    EmptyConversation(
+                        transport = state.transport,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 } else {
                     // 列表末尾留出底栏高度：消息可以滑到玻璃**下面**（这样玻璃有内容可透），
                     // 但最后一条仍能滑到玻璃上方，不会被永久遮住
@@ -180,7 +183,15 @@ fun ChatScreen(
  * 把中间那片空白填成有信息量的内容，也给用户明确的上手路径。
  */
 @Composable
-private fun EmptyConversation(modifier: Modifier = Modifier) {
+private fun EmptyConversation(transport: TransportType, modifier: Modifier = Modifier) {
+    // 三种传输的「怎么连上」差别很大，第 2 步必须按当前方式给对应的说法
+    val startSummary = stringResource(
+        when (transport) {
+            TransportType.RFCOMM -> R.string.chat_setup_start_rfcomm
+            TransportType.BLE -> R.string.chat_setup_start_ble
+            TransportType.WIFI -> R.string.chat_setup_start_wifi
+        }
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -230,7 +241,7 @@ private fun EmptyConversation(modifier: Modifier = Modifier) {
             SetupStep(
                 2,
                 stringResource(R.string.chat_setup_start_title),
-                stringResource(R.string.chat_setup_start_summary)
+                startSummary
             )
             GroupedDivider()
             SetupStep(

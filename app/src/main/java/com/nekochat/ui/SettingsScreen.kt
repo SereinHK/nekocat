@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -25,6 +26,7 @@ import com.nekochat.R
 import com.nekochat.chat.ChatViewModel
 import com.nekochat.chat.TransportType
 import com.nekochat.chat.UiState
+import com.nekochat.util.PowerUtils
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
@@ -54,6 +56,8 @@ fun SettingsScreen(
     bottomReserved: Dp = 0.dp
 ) {
     var nickname by remember(state.nickname) { mutableStateOf(state.nickname) }
+    // 跳系统设置页要用（电池优化豁免）
+    val context = LocalContext.current
 
     // contentWindowInsets 清零，避免与 PageHeader 的状态栏内边距叠加（会多出一条空白带）
     Scaffold(contentWindowInsets = WindowInsets(0)) { padding ->
@@ -141,6 +145,16 @@ fun SettingsScreen(
                     checked = state.notifyOnMessage,
                     onCheckedChange = { viewModel.setNotifyOnMessage(it) }
                 )
+                // 只在没豁免时出现：息屏后链路被省电策略掐断，是唯一官方支持的解法。
+                // 已经豁免就没必要占一行（这类设置项用户看多了会麻木）。
+                if (!state.batteryOptimizationIgnored) {
+                    GroupedDivider()
+                    ArrowPreference(
+                        title = stringResource(R.string.settings_battery_title),
+                        summary = stringResource(R.string.settings_battery_summary),
+                        onClick = { PowerUtils.requestIgnoreBatteryOptimizations(context) }
+                    )
+                }
             }
 
             // ---------- 操作 ----------
