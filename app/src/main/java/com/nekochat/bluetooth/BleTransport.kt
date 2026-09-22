@@ -60,8 +60,34 @@ class BleTransport(private val context: Context) {
         val CHAR_TX_UUID: UUID = UUID.fromString("6d5a1f31-2c4b-4a9e-8f21-7b6c5d4e3f22")
         val CHAR_RX_UUID: UUID = UUID.fromString("6d5a1f32-2c4b-4a9e-8f21-7b6c5d4e3f22")
         internal val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-    /** 单次写入的分片大小，留足余量以适配 23 字节默认 MTU 到 517 字节最大 MTU。 */
-    internal const val CHUNK_SIZE = 160
+        /** 单次写入的分片大小上限，留足余量以适配 23 字节默认 MTU 到 517 字节最大 MTU。 */
+        internal const val CHUNK_SIZE = 160
+
+        /** ATT 默认 MTU。协商结果出来之前只能按它算单次能发多少。 */
+        internal const val DEFAULT_ATT_MTU = 23
+
+        /** 单次传输最少能带的负载（MTU 23 时的 20 字节），再小就没法协商了。 */
+        private const val MIN_CHUNK = 20
+
+        /** BLE 规范允许的最大 ATT MTU。 */
+        private const val MAX_ATT_MTU = 517
+
+        /**
+         * 一次 GATT 传输最多能带多少负载字节 —— **必须按协商出来的 MTU 算**。
+         *
+         * ATT 每次读写受 MTU 限制，可用负载是 `MTU − 3`（1 字节操作码 + 2 字节句柄），
+         * 超出部分协议栈直接拒绝。以前这里写死 160 字节、两处 `onMtuChanged`
+         * 都只打日志不落地，于是真机上「发一条长消息，发完就掉线」：
+         * 分片超过对端能收的长度，写失败，而写失败会主动断开链路。
+         *
+         * 短消息能过只是因为没超过那个长度，属于运气。
+         *
+         * 先把 MTU 夹到合法区间再减 3：直接对任意 Int 做减法会在 `Int.MIN_VALUE`
+         * 附近溢出成正数，反而算出最大的分片。
+         */
+        internal fun chunkSizeFor(mtu: Int): Int =
+            (mtu.coerceIn(DEFAULT_ATT_MTU, MAX_ATT_MTU) - 3).coerceIn(MIN_CHUNK, CHUNK_SIZE)
+
 
         const val MANUFACTURER_ID = 0x02E5
 
@@ -129,6 +155,24 @@ class BleTransport(private val context: Context) {
     /** 各 Central 的通知订阅状态，key 为设备地址。 */
     private val subscribedCentrals = ConcurrentHashMap<String, Boolean>()
 
+    /** 各 Central 协商出来的 ATT MTU，key 为设备地址。未协商前按 [DEFAULT_ATT_MTU] 算。 */
+    private val mtuByDevice = ConcurrentHashMap<String, Int>()
+
+    /**
+     * 每个 Central 的待发通知队列。
+     *
+     * 一帧长消息有上千字节，而单次 notify 最多只能带 `MTU − 3` 字节，必须切片发。
+     * 切片又不能连着甩出去 —— 上一片还没发完就发下一片会被协议栈判成忙而丢包，
+     * 所以一次只发一片，等 [BluetoothGattServerCallback.onNotificationSent] 回来再发下一片。
+     */
+    private class NotifySlice(val payload: ByteArray, val onComplete: ((Boolean) -> Unit)?)
+
+    private val notifyLock = Any()
+    private val notifyQueues = HashMap<String, ArrayDeque<NotifySlice>>()
+
+    /** 每个 Central 当前正在发的那一片，收到 onNotificationSent 后据此取回调。 */
+    private val notifyInFlight = HashMap<String, NotifySlice>()
+
     private var serverListener: TransportListener? = null
     private val advertised = AtomicBoolean(false)
 
@@ -142,6 +186,14 @@ class BleTransport(private val context: Context) {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 centrals.remove(address)
                 subscribedCentrals.remove(address)
+                mtuByDevice.remove(address)
+                // 队列里剩下的分片不可能再发出去了，全部判失败，避免回调永远不触发
+                val dropped = ArrayList<NotifySlice>()
+                synchronized(notifyLock) {
+                    notifyInFlight.remove(address)?.let { dropped += it }
+                    notifyQueues.remove(address)?.let { dropped.addAll(it) }
+                }
+                dropped.forEach { it.onComplete?.invoke(false) }
                 serverListener?.let { listener ->
                     serverLinks.remove(address)?.let { listener.onLinkDown(it, context.getString(R.string.transport_peer_disconnected)) }
                 }
@@ -149,7 +201,23 @@ class BleTransport(private val context: Context) {
         }
 
         override fun onMtuChanged(device: BluetoothDevice, mtu: Int) {
-            // 记录协商结果；分片固定 160 字节，无需动态调整
+            // 协商结果必须落地：分片大小按它算，否则长帧会超出单次传输上限
+            mtuByDevice[device.address] = mtu
+            Log.i(TAG, "服务端 MTU 协商 addr=${device.address} mtu=$mtu 单片上限=${chunkSizeFor(mtu)}")
+        }
+
+        /** 上一片通知发完了，取回调并接着发下一片。 */
+        override fun onNotificationSent(device: BluetoothDevice, status: Int) {
+            val address = device.address
+            val done: NotifySlice?
+            synchronized(notifyLock) { done = notifyInFlight.remove(address) }
+            if (done != null) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    Log.w(TAG, "通知发送失败 addr=$address status=$status")
+                }
+                done.onComplete?.invoke(status == BluetoothGatt.GATT_SUCCESS)
+            }
+            pumpNotifications(device)
         }
 
         override fun onCharacteristicWriteRequest(
@@ -361,9 +429,7 @@ class BleTransport(private val context: Context) {
             onLink(existing)
             return
         }
-        val link = BleClientLink(device, listener, clientScope, { payload ->
-            notifyDevice(device, payload)
-        }, context)
+        val link = BleClientLink(device, listener, clientScope, context)
         clientLinks[device.address] = link
 
         clientScope.launch {
@@ -408,10 +474,14 @@ class BleTransport(private val context: Context) {
      */
     private fun createServerLink(device: BluetoothDevice): BleServerLink? {
         val listener = serverListener ?: return null
-        val writer: BleWriteSink = { payload ->
+        val writer: BleWriteSink = { payload, onComplete ->
             // 对端尚未订阅通知时直接返回 false，让上层知道这帧没真正送达
             // （系统在这种情况下也可能返回 SUCCESS，不能只信返回值）
-            if (subscribedCentrals[device.address] == true) notifyDevice(device, payload) else false
+            if (subscribedCentrals[device.address] == true) {
+                enqueueNotification(device, payload, onComplete)
+            } else {
+                onComplete(false)
+            }
         }
         val existing = serverLinks[device.address]
         if (existing != null) return existing
@@ -426,13 +496,69 @@ class BleTransport(private val context: Context) {
         return link
     }
 
-    @SuppressLint("MissingPermission")
-    internal fun notifyDevice(device: BluetoothDevice, payload: ByteArray): Boolean {
-        return writeToServer(device, payload)
+    /**
+     * 把一整帧按当前 MTU 切片排队发给某个 Central。
+     *
+     * 只有最后一片带上整帧的回调 —— 前面的片失败了会把队列里剩下的都判失败，
+     * 不会出现「回调永远不触发」。
+     */
+    internal fun enqueueNotification(
+        device: BluetoothDevice,
+        frame: ByteArray,
+        onComplete: (Boolean) -> Unit
+    ) {
+        val size = chunkSizeFor(mtuByDevice[device.address] ?: DEFAULT_ATT_MTU)
+        val slices = ArrayList<NotifySlice>()
+        var offset = 0
+        while (offset < frame.size) {
+            val end = minOf(offset + size, frame.size)
+            slices += NotifySlice(frame.copyOfRange(offset, end), null)
+            offset = end
+        }
+        if (slices.isEmpty()) {
+            onComplete(true)
+            return
+        }
+        // 只有最后一片的回调代表「整帧发完」
+        slices[slices.lastIndex] = NotifySlice(slices[slices.lastIndex].payload, onComplete)
+        if (slices.size > 1) {
+            Log.d(TAG, "通知分 ${slices.size} 片发送 ${frame.size} 字节（单片 $size）")
+        }
+
+        synchronized(notifyLock) {
+            notifyQueues.getOrPut(device.address) { ArrayDeque() }.addAll(slices)
+        }
+        pumpNotifications(device)
+    }
+
+    private fun pumpNotifications(device: BluetoothDevice) {
+        val address = device.address
+        val slice: NotifySlice
+        synchronized(notifyLock) {
+            if (notifyInFlight.containsKey(address)) return   // 上一片还没发完
+            val queue = notifyQueues[address] ?: return
+            val next = queue.removeFirstOrNull()
+            if (next == null) {
+                notifyQueues.remove(address)
+                return
+            }
+            notifyInFlight[address] = next
+            slice = next
+        }
+        if (sendNotificationNow(device, slice.payload)) return
+
+        // 没受理：这一片和队列里剩下的一次性判失败，否则回调永远等不到
+        val rest = ArrayList<NotifySlice>()
+        synchronized(notifyLock) {
+            notifyInFlight.remove(address)
+            notifyQueues.remove(address)?.let { rest.addAll(it) }
+        }
+        slice.onComplete?.invoke(false)
+        rest.forEach { it.onComplete?.invoke(false) }
     }
 
     @SuppressLint("MissingPermission")
-    private fun writeToServer(device: BluetoothDevice, payload: ByteArray): Boolean {
+    private fun sendNotificationNow(device: BluetoothDevice, payload: ByteArray): Boolean {
         val server = gattServer ?: return false
         val tx = txCharacteristic ?: return false
         return try {
@@ -585,12 +711,16 @@ internal class BleServerLink(
         get() = !closed.get()
 
     override fun write(frame: ByteArray, onComplete: (Boolean) -> Unit) {
-        val ok = writer(frame)
-        if (!ok) {
-            closed.set(true)
-            fireClosed(context.getString(R.string.transport_ble_notify_failed))
+        writer(frame) { ok ->
+            if (!ok) {
+                // 整帧（含全部分片）发完才判定链路失效。
+                // 以前是整帧一次 notify，长消息必然超过单次传输上限而失败，
+                // 于是表现为「发一条长消息就掉线」。
+                closed.set(true)
+                fireClosed(context.getString(R.string.transport_ble_notify_failed))
+            }
+            onComplete(ok)
         }
-        onComplete(ok)
     }
 
     /**
@@ -646,8 +776,8 @@ internal class BleServerLink(
     }
 }
 
-/** BLE 写入实现：把一帧负载发送到指定设备。 */
-internal typealias BleWriteSink = (ByteArray) -> Boolean
+/** BLE 写入实现：把一帧负载发送到指定设备，发完（含全部分片）回调结果。 */
+internal typealias BleWriteSink = (ByteArray, (Boolean) -> Unit) -> Unit
 
 /**
  * 客户端侧链路：作为 Central 连接对端 GATT Server。
@@ -656,7 +786,6 @@ internal class BleClientLink(
     private val device: BluetoothDevice,
     private val listener: TransportListener,
     private val scope: CoroutineScope,
-    private val writer: BleWriteSink,
     /** 只用于取用户可见的断开原因文案。 */
     private val context: Context
 ) : PeerLink {
@@ -697,6 +826,10 @@ internal class BleClientLink(
      */
     @Volatile
     private var rxChar: BluetoothGattCharacteristic? = null
+
+    /** 与本机协商出来的 ATT MTU。没协商出来之前按默认值算，宁可慢也不能超。 */
+    @Volatile
+    private var negotiatedMtu = BleTransport.DEFAULT_ATT_MTU
 
     @Volatile
     private var connected = false
@@ -797,7 +930,9 @@ internal class BleClientLink(
 
         override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
             if (!isCurrentRound(g)) return
-            Log.d(BleTransport.TAG, "onMtuChanged mtu=$mtu status=$status")
+            // 协商结果要落地：分片大小按它算，否则长帧的分片会超过对端能收的长度
+            negotiatedMtu = mtu
+            Log.i(BleTransport.TAG, "客户端 MTU 协商 mtu=$mtu status=$status 单片上限=${BleTransport.chunkSizeFor(mtu)}")
             mtuSettled.complete(Unit)
         }
 
@@ -945,10 +1080,18 @@ internal class BleClientLink(
         }
         scope.launch {
             writeMutex.withLock {
+                // 分片大小按协商到的 MTU 算，不写死 —— 见 chunkSizeFor 的注释
+                val chunkSize = BleTransport.chunkSizeFor(negotiatedMtu)
+                if (frame.size > chunkSize) {
+                    Log.d(
+                        BleTransport.TAG,
+                        "分 ${(frame.size + chunkSize - 1) / chunkSize} 片发送 ${frame.size} 字节（MTU=$negotiatedMtu）"
+                    )
+                }
                 var offset = 0
                 var success = true
                 while (offset < frame.size) {
-                    val end = minOf(offset + BleTransport.CHUNK_SIZE, frame.size)
+                    val end = minOf(offset + chunkSize, frame.size)
                     val chunk = frame.copyOfRange(offset, end)
                     val seq: Int
                     val deferred = CompletableDeferred<Boolean>()
