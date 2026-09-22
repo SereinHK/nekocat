@@ -45,7 +45,7 @@ BLE 的每一步也都有日志（tag `NekoChatBle`），配合仓库里的 `wat
 
 ## 发布签名（可选）
 
-release 包默认未签名，密钥不进仓库。要出可分发的 release 包，先生成密钥并在仓库根目录建 `keystore.properties`（已在 `.gitignore` 里）：
+仓库里不含签名密钥，所以新克隆下来构建出的是未签名的 `app-release-unsigned.apk`。构建会自动读取仓库根目录的 `keystore.properties`（已在 `.gitignore` 里）——建一个就能产出已签名、可分发的 release 包：
 
 ```powershell
 keytool -genkeypair -v -keystore nekochat.jks -alias nekochat -keyalg RSA -keysize 2048 -validity 10000

@@ -45,7 +45,7 @@ BLE also logs every step under the `NekoChatBle` tag; `watch-ble-log.bat` in thi
 
 ## Release signing (optional)
 
-Release builds are unsigned by default — signing keys do not belong in a repository. To produce a distributable release build, generate a key and create `keystore.properties` in the repository root (it is already in `.gitignore`):
+This repository ships no signing key, so a fresh clone produces `app-release-unsigned.apk`. The build picks up a key automatically from a `keystore.properties` file in the repository root (already in `.gitignore`) — create one to produce a signed, distributable release build:
 
 ```bash
 keytool -genkeypair -v -keystore nekochat.jks -alias nekochat -keyalg RSA -keysize 2048 -validity 10000
