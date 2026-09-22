@@ -1,5 +1,7 @@
 # 喵聊 NekoChat
 
+[![Build](https://github.com/SereinHK/nekocat/actions/workflows/build.yml/badge.svg)](https://github.com/SereinHK/nekocat/actions/workflows/build.yml)
+
 完全离线的 Android 局域网聊天工具。不依赖 Wi-Fi、流量或任何服务器，多台设备通过蓝牙或局域网自组网互发消息 —— 没有账号、没有后端、没有云端。
 
 - **三种传输方式**：蓝牙经典 (RFCOMM)、低功耗蓝牙 (BLE GATT)、WiFi 局域网 (TCP)，共用同一套帧协议与组网逻辑
