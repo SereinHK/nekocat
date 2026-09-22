@@ -790,6 +790,28 @@ internal class BleClientLink(
     @Volatile
     private var negotiatedMtu = BleTransport.DEFAULT_ATT_MTU
 
+    /**
+     * 接收侧的分片重组。
+     *
+     * **必须和服务端发出去的分片对齐**：服务端按 MTU 把长帧切成多片通知发过来，
+     * 每次 `onCharacteristicChanged` 只拿到一片。直接把每一片当整帧丢给上层，
+     * 长消息就会报「无法解析的数据包」（真机日志里第一片的前缀是
+     * `00 00 01 d3 7b 22 74 79` —— 长度头加 `{"ty`，明明是对的，只是没拼起来）。
+     *
+     * 服务端侧早就有对称的 `FrameDecoder`，客户端侧是在服务端开始分片之后才需要的。
+     */
+    private val decoder = com.nekochat.chat.FrameDecoder()
+
+    /** 收到一片通知：喂给解码器，凑够整帧才交给上层。 */
+    private fun deliverNotification(payload: ByteArray) {
+        val frames = decoder.feed(payload)
+        for (envelope in frames) {
+            // 上层要的是「去掉长度头的负载」，所以重新编码一次再去掉前 4 字节
+            val frame = com.nekochat.chat.Wire.encode(envelope)
+            listener.onFrame(this, frame.copyOfRange(4, frame.size))
+        }
+    }
+
     @Volatile
     private var connected = false
 
@@ -918,7 +940,7 @@ internal class BleClientLink(
             value: ByteArray
         ) {
             if (characteristic.uuid == BleTransport.CHAR_TX_UUID) {
-                listener.onFrame(this@BleClientLink, value)
+                deliverNotification(value)
             }
         }
 
@@ -929,7 +951,7 @@ internal class BleClientLink(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
             if (characteristic.uuid == BleTransport.CHAR_TX_UUID) {
                 val value = characteristic.value ?: return
-                listener.onFrame(this@BleClientLink, value)
+                deliverNotification(value)
             }
         }
 

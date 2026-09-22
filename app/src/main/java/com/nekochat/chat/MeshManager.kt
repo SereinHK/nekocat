@@ -24,6 +24,7 @@ import java.io.Closeable
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /** 已连接的对端。 */
 data class Peer(
@@ -185,6 +186,11 @@ class MeshManager(
     private val helloRunnable = object : Runnable {
         override fun run() {
             if (!running.get()) return
+            // 顺手对一次账：死链路和它留下的 peer 必须清掉。
+            // 只在事件里清是不够的 —— 没有新事件时（比如链路静默失活后再无变化）
+            // 那条死链路会一直占着 address，界面上显示「在线」但一条消息都发不出去。
+            // 心跳每 12 秒一次，正好当作兜底的巡检。
+            pruneDeadLinks()
             broadcastHello()
             handler.postDelayed(this, HELLO_INTERVAL_MS)
         }
@@ -424,7 +430,18 @@ class MeshManager(
         ble.startScan(
             onFound = { device, rssi, name, advToken ->
                 if (device.address == localMac) return@startScan
-                if (peers.values.any { it.address == device.address }) return@startScan
+                // 只有「已经和这台设备连着一条活链路」才跳过。
+                //
+                // 以前判的是 `peers` 里有没有这个地址 —— 而 peers 会在链路死掉后
+                // 依旧留着记录（失活不一定经 linkClosed），于是这台设备再也拨不出去：
+                // 真机日志里表现为扫描结果一条接一条、却连一句「跳过拨号」都没有
+                // （静默 return），界面上还显示「在线」，消息永远发不出去。
+                val knownPeer = peers.values.firstOrNull { it.address == device.address }
+                if (knownPeer != null &&
+                    links.values.any { it.deviceId == knownPeer.deviceId && it.link.isConnected }
+                ) {
+                    return@startScan
+                }
                 val discovered = DiscoveredDevice(
                     name = name ?: device.address,
                     address = device.address,
@@ -566,15 +583,19 @@ class MeshManager(
         val dead = links.values.filter {
             !it.link.isConnected && now - it.attachedAt > HANDSHAKE_GRACE_MS
         }
-        if (dead.isEmpty()) return
         dead.forEach { attached ->
             links.remove(attached.link.address, attached)
             Log.w(TAG, "清理失效链路 ${attached.link.address}（deviceId=${attached.deviceId}）")
-            val deviceId = attached.deviceId
-            // 只有这台设备确实没有别的活链路时才摘掉 peer
-            if (deviceId != null && links.values.none { it.deviceId == deviceId }) {
-                peers.remove(deviceId)
-            }
+        }
+        // 摘掉已经没有活链路指向的 peer。
+        // 链路可能在别处被移除（例如拨号重连时换掉旧链路），只在 linkClosed 里删 peer
+        // 会漏掉这些路径，留下一具「显示在线、实际没链路」的空壳。
+        val orphans = peers.values.filter { peer ->
+            links.values.none { it.deviceId == peer.deviceId && it.link.isConnected }
+        }
+        orphans.forEach {
+            peers.remove(it.deviceId)
+            Log.w(TAG, "清理无链路的在线记录 ${it.deviceId}（${it.nickname}）")
         }
     }
 
@@ -716,6 +737,26 @@ class MeshManager(
 
         when (envelope.type) {
             MsgType.HELLO, MsgType.PING, MsgType.PONG -> {
+                // 学到 deviceId 之后先查重。
+                //
+                // BLE 的地址是会轮换的（RPA）：对端换个地址广播，本机就会把它当成
+                // 新设备再连一次，于是同一台设备留下两条链路 —— 真机日志里能看到
+                // 两个地址交替收发，同一条消息被发两遍。
+                // 链路是按地址索引的，只有 deviceId 才知道「这是同一个设备」。
+                val duplicate = links.values.firstOrNull {
+                    it !== attached && it.deviceId == envelope.sender.deviceId
+                }
+                if (duplicate != null) {
+                    Log.i(
+                        TAG,
+                        "已有指向 ${envelope.sender.deviceId} 的链路（${duplicate.link.address}），" +
+                            "关闭重复的 ${link.address}"
+                    )
+                    links.remove(link.address, attached)
+                    peerIdByAddr.remove(link.address)
+                    runCatching { link.close() }
+                    return
+                }
                 val isNew = peers[envelope.sender.deviceId] == null
                 attached.deviceId = envelope.sender.deviceId
                 attached.nickname = envelope.sender.nickname
@@ -880,15 +921,27 @@ class MeshManager(
                     continue
                 }
                 val frame = Wire.encode(envelope)
-                var delivered = 0
+                val total = targets.size
+                // 写入是**异步**的（BLE 要等 GATT 回调、TCP 在自己的线程上写），
+                // 所以不能在这里直接读计数 —— 以前就是这么写的，结果长消息必然显示
+                // 「已发送 ×0」：写完 4 个分片要一百多毫秒，而这里立刻就上报了。
+                // 改成先报 0/total 占位，每收到一个成功回调就更新一次。
+                val delivered = AtomicInteger(0)
+                envelope.msgId?.let { id ->
+                    handler.post { listener?.onMessageDelivery(id, 0, total) }
+                }
                 targets.forEach { attached ->
                     if (!attached.link.isConnected) return@forEach
                     runCatching {
-                        attached.link.write(frame) { ok -> if (ok) delivered++ }
+                        attached.link.write(frame) { ok ->
+                            if (ok) {
+                                val done = delivered.incrementAndGet()
+                                envelope.msgId?.let { id ->
+                                    handler.post { listener?.onMessageDelivery(id, done, total) }
+                                }
+                            }
+                        }
                     }
-                }
-                envelope.msgId?.let { id ->
-                    handler.post { listener?.onMessageDelivery(id, delivered, targets.size) }
                 }
             }
         }
