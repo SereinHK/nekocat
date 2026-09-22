@@ -39,15 +39,16 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      # compileSdk 37 不在 runner 预装的 SDK 里，要显式装
+      # compileSdk 37 不在 runner 预装的 SDK 里，要显式装。
+      # 注意包名是 platforms;android-37.0 而不是 android-37 ——
+      # Android 现在用「主版本.次版本」编号（36.0 / 37.0），少写 .0 会报包不存在。
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platforms;android-37
-            build-tools;37.0.0
-            platform-tools
           accept-android-sdk-licenses: true
+
+      - name: Install SDK platform and build-tools
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 
       # 37 个纯逻辑单元测试：协议编解码、TCP 分帧、组网路由、拨号判定反对称性
       - name: Unit tests
