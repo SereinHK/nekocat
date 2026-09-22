@@ -1,61 +1,68 @@
-# 喵聊 NekoChat
+# NekoChat (喵聊)
+
+**English** · [简体中文](README.zh-CN.md)
 
 [![Build](https://github.com/SereinHK/nekocat/actions/workflows/build.yml/badge.svg)](https://github.com/SereinHK/nekocat/actions/workflows/build.yml)
 
-完全离线的 Android 局域网聊天工具。不依赖 Wi-Fi、流量或任何服务器，多台设备通过蓝牙或局域网自组网互发消息 —— 没有账号、没有后端、没有云端。
+A fully offline LAN chat app for Android. No Wi-Fi router, no mobile data, no server — devices talk to each other directly over Bluetooth or the local network. No account, no backend, no cloud.
 
-- **三种传输方式**：蓝牙经典 (RFCOMM)、低功耗蓝牙 (BLE GATT)、WiFi 局域网 (TCP)，共用同一套帧协议与组网逻辑
-- **多点组网**：3 台及以上同时群聊，消息自动中继扩散到全网并幂等去重
-- **一对一私聊**：带锁图标与独立配色，与群发明确区分
-- **扫码连接**：WiFi 模式下扫二维码即可连上，不用手抄 IP
-- **完全离线**：无账号、无后端、无遥测；整个应用没有任何一行代码会发起外部请求
+- **Three transports, one protocol** — Bluetooth Classic (RFCOMM), Bluetooth Low Energy (GATT), and Wi-Fi LAN (TCP) share the same frame format and mesh logic
+- **Mesh chat** — three or more devices chat together; messages relay hop by hop and are de-duplicated by id
+- **One-to-one private chat** — visually distinct from group messages
+- **QR pairing** — in Wi-Fi mode, scan a QR code instead of typing IP addresses
+- **Genuinely offline** — no analytics, no telemetry, and not a single line of code that makes an outbound request
 
-## 快速开始
+## Quick start
 
-要求 **JDK 17~21** 与 **Android SDK Platform 37**（Miuix 0.9.3 要求 `compileSdk >= 37`）。
-`local.properties` 指向本机 SDK 路径，换机器请自行修改。
+Requires **JDK 17–21** and **Android SDK Platform 37** (Miuix 0.9.3 needs `compileSdk >= 37`).
+`local.properties` points at your local SDK; adjust it if you build on another machine.
 
-```powershell
-.\gradlew.bat :app:assembleDebug     # 产物：app/build/outputs/apk/debug/app-debug.apk
-adb install -r app\build\outputs\apk\debug\app-debug.apk
+```bash
+./gradlew :app:assembleDebug          # Windows: gradlew.bat :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-装到两台以上设备后，**两端必须选同一种传输方式**，然后：
+Install it on two or more devices. **Both ends must use the same transport**, then:
 
-**蓝牙经典 (RFCOMM)** —— 最稳定
-1. 先在系统「设置 → 蓝牙」里互相配对
-2. 两端都进入 App，点右上角 **启动**
-3. 在其中一台的「设备」页 → 已配对设备 → 点对方 **连接**
+**Bluetooth Classic (RFCOMM)** — the most stable option
+1. Pair the two devices in the system Bluetooth settings first
+2. Open the app on both and tap **Start**
+3. On one device go to **Devices → Paired devices** and tap **Connect** on the other
 
-**低功耗蓝牙 (BLE)** —— 免配对
-1. 两端都打开蓝牙（不用配对），传输方式选 BLE
-2. 两端都点 **启动**，会自动互相发现并连接
+**Bluetooth Low Energy (BLE)** — no pairing needed
+1. Turn Bluetooth on on both devices (no pairing) and pick BLE
+2. Tap **Start** on both — they find and connect to each other automatically
 
-**WiFi 局域网 (TCP)** —— 带宽高、距离远
-1. 两端连到同一个路由器/热点，传输方式选 WiFi
-2. 两端都点 **启动**
-3. 主机在「设备」页点 **显示二维码**，对端点 **扫对方的二维码**（也可手动填 IP）
+**Wi-Fi LAN (TCP)** — highest bandwidth, longest range
+1. Put both devices on the same router/hotspot and pick Wi-Fi
+2. Tap **Start** on both
+3. On the host, tap **Show QR code** in the **Devices** page; on the other, scan it (or type the IP manually)
 
-三台及以上：全部启动即可，RFCOMM 下由一台作服务端、其余连它，BLE/WiFi 可任意两两直连。
+For three or more devices: just start them all. With RFCOMM one acts as the server and the rest connect to it; over BLE/Wi-Fi any pair can connect directly.
 
-连不上时先看 App 内「设置」页最下方的**当前状态**，它会实时显示关键信息。
-BLE 的每一步也都有日志（tag `NekoChatBle`），配合仓库里的 `watch-ble-log.bat` 双击即可抓取。
+If it will not connect, check the **current status** line at the bottom of the app's **Settings** page — it shows what is happening in real time.
+BLE also logs every step under the `NekoChatBle` tag; `watch-ble-log.bat` in this repo captures it with one double-click (Windows).
 
-## 发布签名（可选）
+## Release signing (optional)
 
-release 包默认未签名，密钥不进仓库。要出可分发的 release 包，先生成密钥并在仓库根目录建 `keystore.properties`（已在 `.gitignore` 里）：
+Release builds are unsigned by default — signing keys do not belong in a repository. To produce a distributable release build, generate a key and create `keystore.properties` in the repository root (it is already in `.gitignore`):
 
-```powershell
+```bash
 keytool -genkeypair -v -keystore nekochat.jks -alias nekochat -keyalg RSA -keysize 2048 -validity 10000
 ```
 
 ```properties
 storeFile=nekochat.jks
-storePassword=你的密码
+storePassword=your-password
 keyAlias=nekochat
-keyPassword=你的密码
+keyPassword=your-password
 ```
 
-之后 `.\gradlew.bat :app:assembleRelease` 产出已签名的 `app-release.apk`；没有这个文件时构建照常成功，产物为 `app-release-unsigned.apk`。
+`./gradlew :app:assembleRelease` then produces a signed `app-release.apk`. Without that file the build still succeeds and simply yields `app-release-unsigned.apk`.
 
-许可见 [`LICENSE`](LICENSE)（MIT）。
+## Notes
+
+- The UI is currently Simplified Chinese only. The code and identifiers are documented in Chinese as well.
+- Chat history lives in memory only — closing the app clears it. Nothing is written to disk.
+
+Licensed under [`LICENSE`](LICENSE) (MIT).
