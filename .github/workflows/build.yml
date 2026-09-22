@@ -39,16 +39,18 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      # compileSdk 37 不在 runner 预装的 SDK 里，要显式装。
-      # 注意包名是 platforms;android-37.0 而不是 android-37 ——
-      # Android 现在用「主版本.次版本」编号（36.0 / 37.0），少写 .0 会报包不存在。
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
-
-      - name: Install SDK platform and build-tools
-        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+      # 不引 android-actions/setup-android：ubuntu runner 镜像自带 Android SDK
+      # 和 cmdline-tools，多一个 action 就多一个失败点（前两次都是它挂的）。
+      # 包名是 platforms;android-37.0 —— Android 现在用「主版本.次版本」编号
+      # （36.0 / 37.0），少写 .0 会被判定为包不存在。
+      - name: Install SDK platform 37.0
+        run: |
+          SDKMANAGER="$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")"
+          echo "使用 $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0"
+          echo "--- SDK 里现有的 platforms ---"
+          ls "$ANDROID_SDK_ROOT/platforms"
 
       # 37 个纯逻辑单元测试：协议编解码、TCP 分帧、组网路由、拨号判定反对称性
       - name: Unit tests
